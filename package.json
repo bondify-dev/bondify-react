@@ -1,6 +1,6 @@
 {
   "name": "@bondify/react",
-  "version": "2.1.0",
+  "version": "2.1.2",
   "description": "Telegram Login & authentication SDK for React and Next.js — drop-in login button, hooks, and webhook verification. By Bondify.",
   "keywords": [
     "telegram",
@@ -22,9 +22,9 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   },
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

@@ -37,4 +37,5 @@ jobs:
           test -f dist/index.cjs
           test -f dist/index.d.ts
           test -f dist/server.js
+          test -f dist/server.cjs
           test -f dist/server.d.ts

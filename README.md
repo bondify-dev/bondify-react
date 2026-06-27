@@ -187,6 +187,7 @@ BONDIFY_WEBHOOK_SECRET=whsec_...    # from your Bondify dashboard, used by @bond
 
 ## Requirements
 
+- Node.js `>=18` (for `@bondify/react/server` / Next.js SSR)
 - React `>=18` (React 19 / Next.js 16 ready — no source changes needed)
 - Next.js `^14.2.0 || ^15.0.0 || ^16.0.0` (optional — only needed for `@bondify/react/server`)
 - `@bondify/node` `^2.1.0` (optional — only needed for `@bondify/react/server`)
