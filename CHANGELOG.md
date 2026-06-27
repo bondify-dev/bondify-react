@@ -2,7 +2,15 @@
 
 All notable changes to `@bondify/react` will be documented in this file.
 
-## 2.1.0 — Node.js > 14 & Next.js 16+ support
+## Unreleased
+
+_No unreleased changes._
+
+## 2.1.1
+
+- Internal release. No public API changes.
+
+## 2.1.0 — Node.js ≥ 18 & Next.js 16+ support
 
 - **Next.js 16 support: peer `next` widened to
   `^14.2.0 || ^15.0.0 || ^16.0.0`.**
@@ -23,5 +31,5 @@ All notable changes to `@bondify/react` will be documented in this file.
 ## 2.0.0
 
 - Initial public release: `BondifyProvider`, `BondifyButton`, `BondifyModal`,
-  `BondifyQR`, the `useBondify*` hooks, and `@bondify/react/server` helpers
+  `BondifyQR`, the `useBondifyAuth` hooks, and `@bondify/react/server` helpers
   for the Next.js App Router.
