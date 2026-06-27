@@ -12,7 +12,7 @@ All notable changes to `@bondify/react` will be documented in this file.
   `propTypes`, string refs, or `ReactDOM.render`; every `useRef` already passes
   an initial value; server helpers already `await cookies()` (required since
   Next 15). No source changes were required for React 19 / Next 16.
-- **`engines.node` set to `>=16`.**
+- **`engines.node` set to `>=18`.**
 - Bumped `@bondify/node` peer/dev dependency to `^2.1.0`.
 
 ### Migration
