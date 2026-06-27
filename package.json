@@ -1,6 +1,6 @@
 {
   "name": "@bondify/react",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "Telegram Login & authentication SDK for React and Next.js — drop-in login button, hooks, and webhook verification. By Bondify.",
   "keywords": [
     "telegram",
