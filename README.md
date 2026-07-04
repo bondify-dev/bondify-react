@@ -24,6 +24,11 @@ npm install @bondify/react
 npm install qrcode
 ```
 
+> **On `1.x`?** It's deprecated and unsupported — upgrade straight to `3.x`
+> (which requires `@bondify/node@^3.0.0` as its peer). See the
+> [changelog](./CHANGELOG.md#300--server-only-guard-bondifynode-v3-peer)
+> for details.
+
 ## Quick start
 
 ### 1. Wrap your app
@@ -101,17 +106,33 @@ export default async function DashboardPage() {
 }
 ```
 
+> **Important:** `@bondify/react/server` is marked `server-only` — importing
+> it (even just `saveProofCookie`) directly into a file with `'use client'`
+> fails the build. Put the actual `saveProofCookie` call in its own
+> **Server Action** module (no `'use client'` at the top), and call *that*
+> module from your Client Component, as shown below.
+
+```ts
+// app/login/actions.ts — Server Action module (no 'use client')
+'use server';
+import { saveProofCookie } from '@bondify/react/server';
+
+export async function persistProof(proof: string) {
+  await saveProofCookie(proof);
+}
+```
+
 ```tsx
 // app/login/page.tsx — Client Component
 'use client';
 import { BondifyButton } from '@bondify/react';
-import { saveProofCookie } from '@bondify/react/server';
+import { persistProof } from './actions';
 
 export default function LoginPage() {
   return (
     <BondifyButton
       onSuccess={async (user) => {
-        await saveProofCookie(user.proof); // Server Action
+        await persistProof(user.proof); // calls the Server Action above
         router.push('/dashboard');
       }}
     />
@@ -161,6 +182,12 @@ export default function LoginPage() {
 
 ### `@bondify/react/server`
 
+This entire subpath is `server-only` (enforced at build time, not just by
+convention) — every export below may only be called from Server Components,
+Server Actions, or Route Handlers. Importing it from a file marked
+`'use client'` fails the build with a clear error instead of the confusing
+runtime error you'd otherwise get from `next/headers`.
+
 | Export                 | Description                                                         |
 | ------------------------ | ----------------------------------------------------------------------- |
 | `saveProofCookie(proof)`  | Server Action — stores the proof in an `httpOnly` cookie.                |
@@ -190,7 +217,7 @@ BONDIFY_WEBHOOK_SECRET=whsec_...    # from your Bondify dashboard, used by @bond
 - Node.js `>=18` (for `@bondify/react/server` / Next.js SSR)
 - React `>=18` (React 19 / Next.js 16 ready — no source changes needed)
 - Next.js `^14.2.0 || ^15.0.0 || ^16.0.0` (optional — only needed for `@bondify/react/server`)
-- `@bondify/node` `^2.1.0` (optional — only needed for `@bondify/react/server`)
+- `@bondify/node` `^3.0.0` (optional — only needed for `@bondify/react/server`)
 - `qrcode` (optional — only needed for `<BondifyQR>` to render a real QR code instead of the fallback button)
 
 ## Related packages

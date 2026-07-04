@@ -5,6 +5,14 @@
 
 // IMPORTANT: this file is server-only (Next.js App Router).
 // Do not import it from Client Components.
+//
+// The `server-only` import below isn't just documentation — it's a build-time
+// guard. If this module ever ends up in a Client Component's bundle, Next.js
+// fails the build with a clear error ("You're importing a component that
+// needs 'server-only'...") instead of the confusing runtime error you'd get
+// from `next/headers` ("headers was called outside a request scope") deep
+// inside a component tree.
+import 'server-only';
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -102,15 +110,18 @@ export async function getServerUser(options?: {
     }
 
     const server = new BondifyServer({ jwtSecret: secret });
-    const payload = server.verifyProof(proof);
+    // verifyProof() is async — always await it (see @bondify/node's docs).
+    // As of @bondify/node v3, it already returns camelCase fields matching
+    // BondifyUser, so no manual snake_case → camelCase mapping is needed here.
+    const payload = await server.verifyProof(proof);
 
     return {
-      telegramId:       payload.telegram_id,
-      telegramName:     payload.telegram_name,
-      telegramUsername: payload.telegram_username ?? null,
+      telegramId:       payload.telegramId,
+      telegramName:     payload.telegramName,
+      telegramUsername: payload.telegramUsername ?? null,
       telegramPhone:    null,
       proof,
-      confirmedAt:      payload.confirmed_at ?? 0,
+      confirmedAt:      payload.confirmedAt ?? 0,
     };
   } catch (e) {
     console.warn('[Bondify] getServerUser: proof verification failed:', e);
