@@ -41,13 +41,21 @@ const INITIAL_STATE: AuthState = {
   secondsLeft:  null,
 };
 
-// ─── Context ───────────────────────────────────────────────────────────────────
-interface BondifyContextValue extends UseBondifyAuthReturn {
+// ─── Contexts ────────────────────────────────────────────────────────────────
+// State and actions are split into two contexts so that consumers who only
+// need the actions (e.g. `useBondifyActions()`) don't re-subscribe to every
+// state change (status transitions, the once-a-second countdown tick, etc).
+// Only `startAuth` and `checkStatus` ever need to read the *current* state
+// (to guard against e.g. double-starting a session); they do so via a ref
+// rather than a dependency on `state`, so their identity — and this
+// context's value — stays stable across state updates.
+interface BondifyActionsContextValue extends Omit<UseBondifyAuthReturn, keyof AuthState> {
   config: Required<BondifyConfig>;
   client: BondifyAPIClient;
 }
 
-const BondifyContext = createContext<BondifyContextValue | null>(null);
+const BondifyStateContext   = createContext<AuthState | null>(null);
+const BondifyActionsContext = createContext<BondifyActionsContextValue | null>(null);
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export interface BondifyProviderProps {
@@ -78,6 +86,15 @@ export function BondifyProvider({ config, children }: BondifyProviderProps) {
 
   const [state, setState] = useState<AuthState>(INITIAL_STATE);
 
+  // Always-current snapshot of `state`, read from inside stable callbacks
+  // instead of putting `state` (or its fields) in their dependency arrays.
+  // This is what keeps `startAuth` / `checkStatus` — and therefore the
+  // Actions context value — from changing identity on every state update.
+  const stateRef = useRef<AuthState>(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   const pollingTimer   = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutTimer   = useRef<ReturnType<typeof setTimeout>  | null>(null);
   const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -89,6 +106,7 @@ export function BondifyProvider({ config, children }: BondifyProviderProps) {
       isMounted.current = false;
       clearAllTimers();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const clearAllTimers = useCallback(() => {
@@ -148,8 +166,18 @@ export function BondifyProvider({ config, children }: BondifyProviderProps) {
         }
         // status === 'pending' — keep polling
       } catch (e) {
-        // Network errors don't interrupt polling, just log them
-        console.warn('[Bondify] Polling error:', e);
+        const code = (e as BondifyError)?.code;
+        if (code === 'NETWORK_ERROR') {
+          // Transient connectivity issue — keep polling silently, the
+          // next tick will likely succeed.
+          console.warn('[Bondify] Polling network error (retrying):', e);
+          return;
+        }
+        // Any other code (PROJECT_NOT_FOUND, PROJECT_INACTIVE,
+        // PUBLIC_ACCESS_DISABLED, RATE_LIMITED, …) is a definitive response
+        // from the backend — retrying won't help, so stop polling and
+        // surface it via onError instead of spinning silently forever.
+        setError(e as BondifyError);
       }
     }, fullConfig.pollingInterval);
   }, [client, fullConfig, clearAllTimers, setError]);
@@ -167,7 +195,10 @@ export function BondifyProvider({ config, children }: BondifyProviderProps) {
 
   // ── Starting authentication ──────────────────────────────────────────────
   const startAuth = useCallback(async () => {
-    if (state.status === 'polling' || state.status === 'pending') return;
+    // Read the current status via ref rather than depending on `state.status`
+    // directly — this keeps `startAuth`'s identity stable across state
+    // updates, which in turn keeps the Actions context value stable.
+    if (stateRef.current.status === 'polling' || stateRef.current.status === 'pending') return;
     clearAllTimers();
     setState({ ...INITIAL_STATE, status: 'pending' });
 
@@ -194,13 +225,15 @@ export function BondifyProvider({ config, children }: BondifyProviderProps) {
     } catch (e) {
       setError(e as BondifyError);
     }
-  }, [state.status, client, fullConfig.mode, clearAllTimers, startPolling, startCountdown, setError]);
+  }, [client, fullConfig.mode, clearAllTimers, startPolling, startCountdown, setError]);
 
   // ── Manual status check ──────────────────────────────────────────────────
   const checkStatus = useCallback(async () => {
-    if (!state.sessionToken) return;
+    // Same ref-read rationale as `startAuth` above.
+    const sessionToken = stateRef.current.sessionToken;
+    if (!sessionToken) return;
     try {
-      const res = await client.verifySession(state.sessionToken);
+      const res = await client.verifySession(sessionToken);
       if (res.status === 'confirmed' || res.status === 'used') {
         clearAllTimers();
         const user: BondifyUser = {
@@ -217,7 +250,7 @@ export function BondifyProvider({ config, children }: BondifyProviderProps) {
     } catch (e) {
       console.warn('[Bondify] checkStatus error:', e);
     }
-  }, [state.sessionToken, client, fullConfig, clearAllTimers]);
+  }, [client, fullConfig, clearAllTimers]);
 
   // ── Reset ─────────────────────────────────────────────────────────────────
   const reset = useCallback(() => {
@@ -225,28 +258,31 @@ export function BondifyProvider({ config, children }: BondifyProviderProps) {
     setState(INITIAL_STATE);
   }, [clearAllTimers]);
 
-  const value = useMemo<BondifyContextValue>(
+  const actionsValue = useMemo<BondifyActionsContextValue>(
     () => ({
-      ...state,
       startAuth,
       reset,
       checkStatus,
       config: fullConfig,
       client,
     }),
-    [state, startAuth, reset, checkStatus, fullConfig, client]
+    [startAuth, reset, checkStatus, fullConfig, client]
   );
 
   return (
-    <BondifyContext.Provider value={value}>
-      {children}
-    </BondifyContext.Provider>
+    <BondifyActionsContext.Provider value={actionsValue}>
+      <BondifyStateContext.Provider value={state}>
+        {children}
+      </BondifyStateContext.Provider>
+    </BondifyActionsContext.Provider>
   );
 }
 
-// ─── Context-access hook ──────────────────────────────────────────────────────
-export function useBondifyContext(): BondifyContextValue {
-  const ctx = useContext(BondifyContext);
+// ─── Context-access hooks ──────────────────────────────────────────────────────
+
+/** State only — re-renders whenever any field of `AuthState` changes. */
+export function useBondifyState(): AuthState {
+  const ctx = useContext(BondifyStateContext);
   if (!ctx) {
     throw new Error(
       '[Bondify] useBondify* hooks must be used inside a <BondifyProvider>. ' +
@@ -254,4 +290,37 @@ export function useBondifyContext(): BondifyContextValue {
     );
   }
   return ctx;
+}
+
+/**
+ * Actions only — `startAuth`, `reset`, `checkStatus`, `config`, `client`.
+ * These never change identity due to state/status updates, so a component
+ * that only calls this hook will NOT re-render on status transitions or the
+ * once-a-second countdown tick.
+ */
+export function useBondifyActionsContext(): BondifyActionsContextValue {
+  const ctx = useContext(BondifyActionsContext);
+  if (!ctx) {
+    throw new Error(
+      '[Bondify] useBondify* hooks must be used inside a <BondifyProvider>. ' +
+      'Wrap your app: <BondifyProvider config={...}>...</BondifyProvider>'
+    );
+  }
+  return ctx;
+}
+
+/**
+ * Combined state + actions — this is what `useBondifyAuth()` uses. Re-renders
+ * on both state changes and (rarely) actions/config changes. Prefer the
+ * narrower hooks (`useBondifyState`/`useBondifyActionsContext`, or the
+ * public `useBondifyUser` / `useBondifyActions` etc.) when you don't need
+ * everything.
+ */
+export function useBondifyContext(): UseBondifyAuthReturn & {
+  config: Required<BondifyConfig>;
+  client: BondifyAPIClient;
+} {
+  const state   = useBondifyState();
+  const actions = useBondifyActionsContext();
+  return { ...state, ...actions };
 }

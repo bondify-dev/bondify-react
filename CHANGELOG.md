@@ -2,6 +2,67 @@
 
 All notable changes to `@bondify/react` will be documented in this file.
 
+## 3.0.1 — Fewer re-renders, correct error codes, `mode` doc fix
+
+**Fixed:**
+
+- **`useBondifyActions()` now actually doesn't re-render on state changes.**
+  Previously all hooks (`useBondifyUser`, `useBondifyStatus`,
+  `useBondifyActions`, etc.) read from a single combined context, so *any*
+  state update — including the once-a-second countdown tick during polling —
+  re-rendered every consumer, regardless of which hook it called. The
+  provider now exposes two separate contexts internally (state and actions);
+  `useBondifyActions()` subscribes only to the actions one, which keeps a
+  stable identity across the whole auth flow (implemented via a ref-based
+  read of the latest status/session inside `startAuth`/`checkStatus`,
+  instead of listing them as dependencies). `useBondifyAuth()` is unaffected
+  — it still exposes both state and actions and re-renders as before. No
+  public API changes.
+- **The API client now reads the backend's machine-readable `code` field
+  from error responses** instead of guessing the error code purely from the
+  HTTP status. Several distinct failures share the same HTTP status (e.g.
+  403 covers both `PUBLIC_ACCESS_DISABLED` and `PROJECT_INACTIVE` — see the
+  REST API reference's Errors section), so status-only mapping could report
+  the wrong `error.code` to `onError`. The status-based mapping is kept as a
+  fallback for the rare response that omits `code`.
+- **Fixed a stale doc comment on `BondifyConfig.mode`.** It described the
+  non-default value as `"popup"`, but the actual type (and behavior) is
+  `'redirect' | 'inline'` — there is no `'popup'` value. The comment now
+  describes what `'inline'` actually does.
+- **Polling no longer silently swallows definitive backend errors.**
+  Previously, *any* error during a polling tick (network failure, project
+  not found, project inactive, public access disabled, rate limited, …) was
+  caught and just logged with `console.warn`, and polling continued
+  indefinitely. Now only actual `NETWORK_ERROR`s are retried silently — any
+  other error code (which means the backend gave a definitive answer, not a
+  transient connectivity blip) stops polling and calls `onError`, so your
+  app can actually react to it instead of the sign-in flow hanging forever
+  with no feedback.
+
+**Added:**
+
+- **`getServerUser()` (`@bondify/react/server`) now returns the real
+  `telegramPhone`** instead of hardcoding it to `null`. This requires
+  `@bondify/node@^3.0.2`, which is where `verifyProof()` started returning
+  this field — client-side (`useBondifyUser()`) and server-side
+  (`getServerUser()`) `BondifyUser` shapes are now consistent for
+  Pro/Business one-tap phone sign-ins.
+
+## 3.0.0-patch — Fixed misleading `saveProofCookie` example
+
+**Fixed:**
+
+- **The JSDoc example for `saveProofCookie` showed an incorrect usage
+  pattern.** It imported and called `saveProofCookie` directly inside a file
+  labeled `'use client'`. Since `@bondify/react/server` enforces its
+  server-only requirement at build time (via the `server-only` package,
+  shipped in 3.0.0), a Client Component that imports anything from this
+  module fails the build. The example now correctly shows wrapping
+  `saveProofCookie` in its own Server Action module (`'use server'`, no
+  `'use client'` anywhere in the import chain) and calling that module from
+  the Client Component instead. No source behavior changed — this is a
+  documentation-only fix to the in-code example.
+
 ## 3.0.0 — server-only guard, @bondify/node v3 peer
 
 **Breaking changes:**

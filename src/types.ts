@@ -8,7 +8,7 @@ export interface BondifyConfig {
   projectId: string;
   /** Backend base URL (default: https://api.bondify.dev) */
   apiUrl?: string;
-  /** Auth mode: redirect (default) or popup */
+  /** Auth mode: 'redirect' (default) opens the Telegram deeplink automatically in a new tab; 'inline' does not — render your own UI (e.g. `<BondifyQR>`) and call `startAuth()` yourself */
   mode?: 'redirect' | 'inline';
   /** Polling interval in ms (default: 1500) */
   pollingInterval?: number;

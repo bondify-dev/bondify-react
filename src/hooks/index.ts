@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useBondifyContext } from '../context/BondifyProvider';
+import { useBondifyContext, useBondifyState, useBondifyActionsContext } from '../context/BondifyProvider';
 import type {
   AuthState,
   AuthStatus,
@@ -63,7 +63,7 @@ export function useBondifyAuth(): UseBondifyAuthReturn {
  * ```
  */
 export function useBondifyUser(): BondifyUser | null {
-  return useBondifyContext().user;
+  return useBondifyState().user;
 }
 
 // ─── Status-only hook ─────────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ export function useBondifyUser(): BondifyUser | null {
  * Handy for conditional rendering without extra re-renders.
  */
 export function useBondifyStatus(): AuthStatus {
-  return useBondifyContext().status;
+  return useBondifyState().status;
 }
 
 // ─── Error hook ────────────────────────────────────────────────────────────────
@@ -80,7 +80,7 @@ export function useBondifyStatus(): AuthStatus {
  * Returns the current auth error, or null.
  */
 export function useBondifyError(): BondifyError | null {
-  return useBondifyContext().error;
+  return useBondifyState().error;
 }
 
 // ─── Session deeplink + timer hook ────────────────────────────────────────────
@@ -99,7 +99,7 @@ export function useBondifySession(): {
   expiresAt: number | null;
   secondsLeft: number | null;
 } {
-  const { deeplink, sessionToken, expiresAt, secondsLeft } = useBondifyContext();
+  const { deeplink, sessionToken, expiresAt, secondsLeft } = useBondifyState();
   return { deeplink, sessionToken, expiresAt, secondsLeft };
 }
 
@@ -113,7 +113,7 @@ export function useBondifyActions(): {
   reset: () => void;
   checkStatus: () => Promise<void>;
 } {
-  const { startAuth, reset, checkStatus } = useBondifyContext();
+  const { startAuth, reset, checkStatus } = useBondifyActionsContext();
   return { startAuth, reset, checkStatus };
 }
 
@@ -122,5 +122,5 @@ export function useBondifyActions(): {
  * Simple boolean check: is the user authenticated.
  */
 export function useIsAuthenticated(): boolean {
-  return useBondifyContext().status === 'confirmed';
+  return useBondifyState().status === 'confirmed';
 }
