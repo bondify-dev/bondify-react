@@ -1,6 +1,6 @@
 {
   "name": "@bondify/react",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Telegram Login & authentication SDK for React and Next.js — drop-in login button, hooks, and webhook verification. By Bondify.",
   "keywords": [
     "telegram",
@@ -69,7 +69,7 @@
     "qrcode": "^1.5.3"
   },
   "devDependencies": {
-    "@bondify/node": "^3.0.1",
+    "@bondify/node": "^3.0.2",
     "@types/qrcode": "^1.5.2",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",

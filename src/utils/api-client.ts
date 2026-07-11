@@ -67,15 +67,34 @@ export class BondifyAPIClient {
     }
 
     if (!response.ok) {
-      const errData = data as { error?: string };
+      const errData = data as { error?: string; code?: string };
       throw this.buildError(
-        this.mapHttpCode(response.status),
+        this.resolveErrorCode(errData?.code, response.status),
         errData?.error ?? `HTTP ${response.status}`,
         data
       );
     }
 
     return data as T;
+  }
+
+  // The API returns a machine-readable `code` alongside most error bodies
+  // (see the REST API reference's Errors section) — several distinct
+  // failure reasons can share the same HTTP status (e.g. 403 covers both
+  // `PUBLIC_ACCESS_DISABLED` and `PROJECT_INACTIVE`), so `code` is the
+  // source of truth when present. The status-based mapping below is only a
+  // fallback for the rare response that omits `code`.
+  private static readonly KNOWN_CODES: ReadonlySet<BondifyErrorCode> = new Set([
+    'SESSION_EXPIRED', 'SESSION_CANCELLED', 'NETWORK_ERROR', 'PROJECT_NOT_FOUND',
+    'PROJECT_INACTIVE', 'PUBLIC_ACCESS_DISABLED', 'RATE_LIMITED', 'POLLING_TIMEOUT',
+    'UNKNOWN_ERROR',
+  ]);
+
+  private resolveErrorCode(code: string | undefined, status: number): BondifyErrorCode {
+    if (code && BondifyAPIClient.KNOWN_CODES.has(code as BondifyErrorCode)) {
+      return code as BondifyErrorCode;
+    }
+    return this.mapHttpCode(status);
   }
 
   private mapHttpCode(status: number): BondifyErrorCode {

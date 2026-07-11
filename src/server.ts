@@ -24,16 +24,33 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 // ─── Saving the proof into an httpOnly cookie ────────────────────────────────
 /**
  * Server Action: stores the proof JWT in an httpOnly cookie.
- * Called from a Client Component after a successful sign-in.
+ *
+ * This module is `server-only` (enforced at build time — see the note at
+ * the top of this file), so you cannot import `saveProofCookie` directly
+ * into a `'use client'` file; doing so fails the build. Instead, wrap it in
+ * its own Server Action module (a file starting with `'use server'`, no
+ * `'use client'` anywhere in the chain) and call *that* module from your
+ * Client Component.
  *
  * @example
+ * ```ts
+ * // app/actions.ts  (Server Action module — no 'use client' here)
+ * 'use server'
+ * import { saveProofCookie } from '@bondify/react/server';
+ *
+ * export async function persistProof(proof: string) {
+ *   await saveProofCookie(proof);
+ * }
+ * ```
+ *
  * ```tsx
  * // app/login/page.tsx (Client Component)
- * import { saveProofCookie } from '@bondify/react/server';
+ * 'use client'
+ * import { persistProof } from '../actions';
  *
  * const { user } = useBondifyAuth();
  * useEffect(() => {
- *   if (user?.proof) saveProofCookie(user.proof);
+ *   if (user?.proof) persistProof(user.proof);
  * }, [user]);
  * ```
  */
@@ -119,7 +136,7 @@ export async function getServerUser(options?: {
       telegramId:       payload.telegramId,
       telegramName:     payload.telegramName,
       telegramUsername: payload.telegramUsername ?? null,
-      telegramPhone:    null,
+      telegramPhone:    payload.telegramPhone ?? null,
       proof,
       confirmedAt:      payload.confirmedAt ?? 0,
     };
